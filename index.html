@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>大二学生出行交通方式占比</title>
+  <style>
+    body { margin:0; overflow:hidden; font-family:sans-serif; background:#FAF7F2; }
+    text { user-select:none; }
+  </style>
+</head>
+<body>
+<script src="https://d3js.org/d3.v7.min.js" charset="utf-8"></script>
+<script>
+var w = window.innerWidth, h = window.innerHeight;
+var width = w*0.98, height = h*0.96;
+
+var svg = d3.select("body").append("svg")
+            .attr("width", width).attr("height", height);
+
+// ---- 配色表（出行主题：城市/交通灰蓝绿系）----
+var palette = {
+  "地铁":"#3D5A80",   // 深蓝
+  "公交":"#EE6C4D",   // 橙红
+  "步行":"#98C1A9",   // 绿
+  "骑行":"#E0A458",   // 黄
+  "打车":"#8D99AE"    // 灰
+};
+
+// ---- Title ----
+var titletext = [
+  [" 2026 ", 20, 100],
+  ["出行交通方式占比", 78, 40],
+  ["Commuting Modes · Sophomore Weekly", 108, 14],
+  ["大二大学生一周时间分配全景 · 子主题", 128, 13]
+];
+svg.selectAll(".ttext").data(titletext).enter().append("text")
+   .attr("font-family","SimHei")
+   .attr("font-size", d=>d[2])
+   .attr("x", 40)
+   .attr("y", d=>d[1]+40)
+   .attr("fill", "#3D5A80")
+   .text(d=>d[0]);
+
+// ---- Copyright ----
+var designtext = [
+  ["TripDesign", h-280, 18],
+  ["你的名字 / 组别", h-250, 30],
+  ["中国传媒大学", h-232, 11],
+  ["Communication University of China", h-220, 10]
+];
+svg.selectAll(".dtext").data(designtext).enter().append("text")
+   .attr("font-family","KaiTi")
+   .attr("font-size", d=>d[2])
+   .attr("x", w-300)
+   .attr("y", d=>d[1])
+   .attr("fill", "#8D99AE")
+   .text(d=>d[0]);
+
+// 内置备用数据：当 CSV 无法加载（如本地双击打开）时使用，保证图始终能渲染
+var fallbackData = [
+  {mode:"地铁", mode_en:"Metro",   trips:12, icon:"🚇"},
+  {mode:"公交", mode_en:"Bus",     trips:9,  icon:"🚌"},
+  {mode:"步行", mode_en:"Walk",    trips:15, icon:"🚶"},
+  {mode:"骑行", mode_en:"Cycling", trips:7,  icon:"🚲"},
+  {mode:"打车", mode_en:"Taxi",    trips:3,  icon:"🚕"}
+];
+
+// 优先读 CSV，失败则用内置数据
+d3.csv("transport_mode.csv")
+  .then(render)
+  .catch(function(){ console.warn("CSV 加载失败，使用内置数据"); render(fallbackData); });
+
+function render(dataset){
+  dataset.forEach(d => d.trips = +d.trips);
+  var total = d3.sum(dataset, d=>d.trips);
+
+  var cx = width/2, cy = height/2 + 20;
+  var innerRadius = 90, outerRadius = 220;
+
+  // d3.pie：原生数据 -> 起止角度
+  var pie = d3.pie().sort(null).value(d=>d.trips);
+  // d3.arc：起止角度 -> path 的 d
+  var arc      = d3.arc().innerRadius(innerRadius).outerRadius(outerRadius);
+  var arcLabel = d3.arc().innerRadius((innerRadius+outerRadius)/2)
+                         .outerRadius((innerRadius+outerRadius)/2);
+
+  var g = svg.append("g").attr("transform","translate("+cx+","+cy+")");
+
+  var arcs = g.selectAll("g.slice").data(pie(dataset)).enter()
+              .append("g").attr("class","slice");
+
+  arcs.append("path")
+      .attr("d", arc)
+      .attr("fill", d=>palette[d.data.mode])
+      .attr("stroke","#FAF7F2").attr("stroke-width",3)
+      .on("mouseover", function(e,d){
+        d3.select(this).attr("opacity",0.75);
+        center.text(d.data.mode);
+        centerSub.text(d.data.trips + " 次 / " + (d.data.trips/total*100).toFixed(1) + "%");
+      })
+      .on("mouseout", function(){
+        d3.select(this).attr("opacity",1);
+        center.text("一周出行"); centerSub.text(total + " 次");
+      });
+
+  // 扇区标签：图标 + 名称 + 占比
+  arcs.append("text")
+      .attr("transform", d=>"translate("+arcLabel.centroid(d)+")")
+      .attr("text-anchor","middle").attr("dy","0.35em")
+      .attr("font-size",15).attr("fill","#fff").attr("font-weight","bold")
+      .text(d => d.data.icon + " " + d.data.mode);
+
+  arcs.append("text")
+      .attr("transform", d=>{
+        var c = arcLabel.centroid(d); return "translate("+c[0]+","+(c[1]+20)+")";
+      })
+      .attr("text-anchor","middle")
+      .attr("font-size",13).attr("fill","#fff")
+      .text(d => (d.data.trips/total*100).toFixed(1)+"%");
+
+  // 圆心说明
+  var center = g.append("text").attr("text-anchor","middle").attr("dy","-2")
+                .attr("font-size",24).attr("font-family","SimHei")
+                .attr("fill","#3D5A80").text("一周出行");
+  var centerSub = g.append("text").attr("text-anchor","middle").attr("dy","26")
+                .attr("font-size",18).attr("fill","#8D99AE").text(total + " 次");
+}
+</script>
+</body>
+</html>

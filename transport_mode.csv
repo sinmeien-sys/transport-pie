@@ -1,0 +1,6 @@
+id,mode,mode_en,trips,icon
+1,地铁,Metro,12,🚇
+2,公交,Bus,9,🚌
+3,步行,Walk,15,🚶
+4,骑行,Cycling,7,🚲
+5,打车,Taxi,3,🚕
